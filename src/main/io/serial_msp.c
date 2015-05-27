@@ -695,7 +695,9 @@ void mspInit(serialConfig_t *serialConfig)
 #include "msg/FcVersion.h"
 #include "msg/BoardInfo.h"
 #include "msg/BuildInfo.h"
+#ifdef USE_SERVOS
 #include "msg/ServoConf.h"
+#endif
 
 static bool processOutCommand(uint8_t cmdMSP)
 {
