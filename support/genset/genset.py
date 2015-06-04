@@ -6,32 +6,146 @@ See test.h for example input.
 
 import fileinput
 import pprint
+import collections
+import re
+
 from pyparsing import *
 
+def first(v):
+    if len(v) == 0:
+        return None
+    elif len(v) == 1:
+        return v[0]
+    else:
+        return ' '.join(v)
+
+def parse_number(tokens):
+    return int(tokens[0])
+
+Comments = collections.namedtuple('Comments', 'text fields')
+
+def parse_comments(tokens):
+    text = []
+    fields = {}
+    for line in tokens:
+        line = line.strip()
+        if re.match('^[a-z]+:', line):
+            for field in sub_comments.parseString(line):
+                fields[field.name] = field
+        else:
+            text.append(line)
+    return Comments('\n'.join(text), fields)
+
+Enum = collections.namedtuple('Enum', 'name fields comments')
+
+def parse_enum(tokens):
+    return Enum(tokens.name, list(tokens.fields), first(tokens.comments))
+
+EnumField = collections.namedtuple('EnumField', 'name value comments')
+
+def parse_enum_field(tokens):
+    return EnumField(tokens.name, first(tokens.value), first(tokens.comments))
+
+Typedef = collections.namedtuple('Typedef', 'name alias')
+
+def parse_typedef(tokens):
+    return Typedef(tokens.name, tokens.alias)
+
+Struct = collections.namedtuple('Struct', 'name fields')
+
+def parse_struct(tokens):
+    return Struct(tokens.name, list(tokens.fields))
+
+StructField = collections.namedtuple('StructField', 'type name comments')
+
+def parse_struct_field(tokens):
+    return StructField(tokens.type, tokens.name, first(tokens.comments))
+
+CommentField = collections.namedtuple('CommentField', 'name value')
+
+def parse_comment_field(tokens):
+    return CommentField(tokens.name, tokens.value)
+
 struct = Keyword('struct')
-lbrace = Literal('{')
-rbrace = Literal('}')
-semi = Literal(';')
-identifier = Word(alphas, alphanums + '_')
 typedef = Keyword('typedef')
+enum = Keyword('enum')
+lbrace = Suppress('{')
+rbrace = Suppress('}')
+semi = Suppress(';')
+equals = Suppress('=')
+comma = Suppress(',')
+colon = Suppress(':')
+
+number = Word(nums).setParseAction(parse_number)
+
+identifier = Word(alphas, alphanums + '_').setName('identifier')
 
 comment = Literal('//').suppress() + restOfLine
-comments = Group(OneOrMore(comment))
+comments = OneOrMore(comment).setParseAction(parse_comments)
 
-type_alias = Optional(comments) + typedef + identifier + identifier
+#type_alias = Optional(comments) + typedef + identifier + identifier
 
-field_def = Optional(comments) + identifier + identifier + semi
+struct_field = (
+    Optional(comments).setResultsName('comments')
+    + identifier.setResultsName('type')
+    + identifier.setResultsName('name')
+    + semi
+    )
+struct_field.setParseAction(parse_struct_field)
 
-struct_def = struct + Optional(identifier) + lbrace + OneOrMore(field_def) + rbrace
+struct_decl = (
+    struct
+    + identifier.setResultsName('name')
+    + lbrace
+    + OneOrMore(struct_field).setResultsName('fields')
+    + rbrace
+    )
+struct_decl.setParseAction(parse_struct)
 
-typedef_def = Optional(comments) + typedef + struct_def + identifier
+enum_field = (
+    Optional(comments).setResultsName('comments')
+    + identifier.setResultsName('name')
+    + Optional(equals + number).setResultsName('value')
+    )
+enum_field.setParseAction(parse_enum_field)
 
-bnf = ZeroOrMore((struct_def | typedef_def | type_alias) + semi)
+enum_decl = (
+    Optional(comments).setResultsName('comments')
+    + enum
+    + identifier.setResultsName('name')
+    + lbrace
+    + delimitedList(enum_field).setResultsName('fields')
+    + Optional(comma)
+    + rbrace
+    )
+enum_decl.setParseAction(parse_enum)
+
+typedef_decl = (
+    typedef
+    + identifier.setResultsName('name')
+    + identifier.setResultsName('alias')
+    )
+typedef_decl.setParseAction(parse_typedef)
+
+schema = ZeroOrMore((struct_decl | typedef_decl | enum_decl) + semi)
+
+comment_field =(
+    identifier.setResultsName('name')
+    + colon
+    + (number | identifier).setResultsName('value')
+    )
+comment_field.setParseAction(parse_comment_field)
+
+sub_comments = delimitedList(comment_field, delim=';')
 
 def main():
-    for v in bnf.scanString('\n'.join(fileinput.input())):
-        results, start, end = v
-        results.pprint()
+    contents = '\n'.join(fileinput.input())
+    if False:
+        for v in schema.searchString(contents):
+            results, start, end = v
+            results.pprint()
+    else:
+        schema.parseString(contents, parseAll=True).pprint()
 
 if __name__ == '__main__':
     main()
