@@ -56,21 +56,26 @@ Struct = collections.namedtuple('Struct', 'name fields')
 def parse_struct(tokens):
     return Struct(tokens.name, list(tokens.fields))
 
-StructField = collections.namedtuple('StructField', 'type name comments')
+StructField = collections.namedtuple('StructField', 'type name count comments')
 
 def parse_struct_field(tokens):
-    return StructField(tokens.type, tokens.name, first(tokens.comments))
+    return StructField(tokens.type, tokens.name, tokens.count, first(tokens.comments))
 
 CommentField = collections.namedtuple('CommentField', 'name value')
 
 def parse_comment_field(tokens):
     return CommentField(tokens.name, tokens.value)
 
+def parse_count(tokens):
+    return first(tokens)
+
 struct = Keyword('struct')
 typedef = Keyword('typedef')
 enum = Keyword('enum')
 lbrace = Suppress('{')
 rbrace = Suppress('}')
+lbracket = Suppress('[')
+rbracket = Suppress(']')
 semi = Suppress(';')
 equals = Suppress('=')
 comma = Suppress(',')
@@ -89,16 +94,19 @@ struct_field = (
     Optional(comments).setResultsName('comments')
     + identifier.setResultsName('type')
     + identifier.setResultsName('name')
+    + Optional(lbracket + number + rbracket).setParseAction(parse_count).setResultsName('count')
     + semi
     )
 struct_field.setParseAction(parse_struct_field)
 
 struct_decl = (
-    struct
+    Optional(typedef)
+    + struct
     + identifier.setResultsName('name')
     + lbrace
     + OneOrMore(struct_field).setResultsName('fields')
     + rbrace
+    + ZeroOrMore(identifier)
     )
 struct_decl.setParseAction(parse_struct)
 
