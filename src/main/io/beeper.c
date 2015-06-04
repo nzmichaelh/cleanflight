@@ -144,7 +144,7 @@ typedef struct beeperTableEntry_s {
 #define BEEPER_ENTRY(a,b,c,d) a,b,c
 #endif
 
-static const beeperTableEntry_t const beeperTable[] = {
+static const beeperTableEntry_t beeperTable[] = {
     { BEEPER_ENTRY(BEEPER_RX_LOST_LANDING,       0, beep_sos,              "RX_LOST_LANDING") },
     { BEEPER_ENTRY(BEEPER_RX_LOST,               1, beep_txLostBeep,       "RX_LOST") },
     { BEEPER_ENTRY(BEEPER_DISARMING,             2, beep_disarmBeep,       "DISARMING") },
