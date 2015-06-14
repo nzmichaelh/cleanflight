@@ -8,8 +8,32 @@ import fileinput
 import pprint
 import collections
 import re
+import argparse
+import jinja2
+import sys
 
 from pyparsing import *
+
+BaseType = collections.namedtuple('BaseType', 'name size bits signed')
+
+def make_base_types():
+    types = {
+        'char': BaseType('char', 1, 8, True),
+        }
+    for size in 1, 2, 4:
+        for signed in True, False:
+            bits = size*8
+            name = '{}int{}_t'.format('' if signed else 'u', bits)
+            types[name] = BaseType(name, size, bits, signed)
+    return types
+
+BASE_TYPES = make_base_types()
+
+def find_type(name):
+    if name in BASE_TYPES:
+        return BASE_TYPES[name]
+    else:
+        return BaseType(name, -1, -1, False)
 
 def first(v):
     if len(v) == 0:
@@ -51,15 +75,15 @@ Typedef = collections.namedtuple('Typedef', 'name alias')
 def parse_typedef(tokens):
     return Typedef(tokens.name, tokens.alias)
 
-Struct = collections.namedtuple('Struct', 'name fields')
+Struct = collections.namedtuple('Struct', 'type name fields')
 
 def parse_struct(tokens):
-    return Struct(tokens.name, list(tokens.fields))
+    return Struct('Struct', tokens.name, list(tokens.fields))
 
 StructField = collections.namedtuple('StructField', 'type name count comments')
 
 def parse_struct_field(tokens):
-    return StructField(tokens.type, tokens.name, tokens.count, first(tokens.comments))
+    return StructField(find_type(tokens.type), tokens.name, tokens.count, first(tokens.comments))
 
 CommentField = collections.namedtuple('CommentField', 'name value')
 
@@ -146,14 +170,50 @@ comment_field.setParseAction(parse_comment_field)
 
 sub_comments = delimitedList(comment_field, delim=';')
 
-def main():
-    contents = '\n'.join(fileinput.input())
-    if False:
-        for v in schema.searchString(contents):
-            results, start, end = v
-            results.pprint()
+def constname(v):
+    return re.sub(r'([a-z])([A-Z])', r'\1_\2', v).upper()
+
+def ucfirst(v):
+    return v[0].upper() + v[1:]
+
+def makeargs(v):
+    for field in v:
+        if field.count:
+            yield 'const {} *{}'.format(field.type.name, field.name)
+        else:
+            yield '{} {}'.format(field.type.name, field.name)
+
+def totalsize(v):
+    type = v.type
+    if v.count:
+        return '{}*{}'.format(v.count, type.size)
     else:
-        schema.parseString(contents, parseAll=True).pprint()
+        return type.size
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-o')
+    parser.add_argument('-t', type=file)
+    parser.add_argument('src', type=file)
+    args = parser.parse_args()
+    
+    contents = args.src.read()
+    doc = schema.parseString(contents, parseAll=True)
+    env = jinja2.Environment()
+    env.filters.update({
+        'constname': constname,
+        'ucfirst': ucfirst,
+        'makeargs': makeargs,
+        'totalsize': totalsize,
+        })
+    t = env.from_string(args.t.read())
+    rendered = t.render(doc=doc)
+
+    if args.o:
+        with open(args.o, 'w') as f:
+            f.write(rendered)
+    else:
+        sys.stdout.write(rendered)
 
 if __name__ == '__main__':
     main()
