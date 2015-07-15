@@ -32,7 +32,7 @@ typedef enum BlackboxDevice {
     BLACKBOX_DEVICE_END
 } BlackboxDevice;
 
-uint8_t blackboxWriteChunkSize;
+extern uint8_t blackboxWriteChunkSize;
 
 void blackboxWrite(uint8_t value);
 
@@ -45,6 +45,8 @@ void blackboxWriteS16(int16_t value);
 void blackboxWriteTag2_3S32(int32_t *values);
 void blackboxWriteTag8_4S16(int32_t *values);
 void blackboxWriteTag8_8SVB(int32_t *values, int valueCount);
+void blackboxWriteU32(int32_t value);
+void blackboxWriteFloat(float value);
 
 bool blackboxDeviceFlush(void);
 bool blackboxDeviceOpen(void);
