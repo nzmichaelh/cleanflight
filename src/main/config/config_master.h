@@ -56,6 +56,7 @@ typedef struct master_t {
     batteryConfig_t batteryConfig;
 
     rxConfig_t rxConfig;
+    rxRSSIConfig_t rxRSSIConfig;
     inputFilteringMode_e inputFilteringMode;  // Use hardware input filtering, e.g. for OrangeRX PPM/PWM receivers.
 
     uint8_t retarded_arm;                   // allow disarm/arm on throttle down + roll left/right

@@ -82,12 +82,14 @@ static rcReadRawDataPtr rcReadRawFunc = NULL;  // receive data from default (pwm
 
 rxRuntimeConfig_t rxRuntimeConfig;
 static rxConfig_t *rxConfig;
+static rxRSSIConfig_t *rxRSSIConfig;
 
 void serialRxInit(rxConfig_t *rxConfig);
 
-void useRxConfig(rxConfig_t *rxConfigToUse)
+void useRxConfig(rxConfig_t *rxConfigToUse, rxRSSIConfig_t *rssi)
 {
     rxConfig = rxConfigToUse;
+    rxRSSIConfig = rssi;
 }
 
 #define REQUIRED_CHANNEL_MASK 0x0F // first 4 channels
@@ -113,11 +115,11 @@ STATIC_UNIT_TESTED void rxCheckPulse(uint8_t channel, uint16_t pulseDuration)
 }
 
 
-void rxInit(rxConfig_t *rxConfig)
+void rxInit(rxConfig_t *rxConfig, rxRSSIConfig_t *rssi)
 {
     uint8_t i;
 
-    useRxConfig(rxConfig);
+    useRxConfig(rxConfig, rssi);
 
     for (i = 0; i < MAX_SUPPORTED_RC_CHANNEL_COUNT; i++) {
         rcData[i] = rxConfig->midrc;
@@ -384,10 +386,10 @@ void updateRSSIPWM(void)
 {
     int16_t pwmRssi = 0;
     // Read value of AUX channel as rssi
-    pwmRssi = rcData[rxConfig->rssi_channel - 1];
+    pwmRssi = rcData[rxRSSIConfig->channel - 1];
 	
 	// RSSI_Invert option	
-	if (rxConfig->rssi_ppm_invert) {
+	if (rxRSSIConfig->ppm_invert) {
 	    pwmRssi = ((2000 - pwmRssi) + 1000);
 	}
 	
@@ -414,7 +416,7 @@ void updateRSSIADC(uint32_t currentTime)
 
     int16_t adcRssiMean = 0;
     uint16_t adcRssiSample = adcGetChannel(ADC_RSSI);
-    uint8_t rssiPercentage = adcRssiSample / rxConfig->rssi_scale;
+    uint8_t rssiPercentage = adcRssiSample / rxRSSIConfig->scale;
 
     adcRssiSampleIndex = (adcRssiSampleIndex + 1) % RSSI_ADC_SAMPLE_COUNT;
 
@@ -435,7 +437,7 @@ void updateRSSIADC(uint32_t currentTime)
 void updateRSSI(uint32_t currentTime)
 {
 
-    if (rxConfig->rssi_channel > 0) {
+    if (rxRSSIConfig->channel > 0) {
         updateRSSIPWM();
     } else if (feature(FEATURE_RSSI_ADC)) {
         updateRSSIADC(currentTime);

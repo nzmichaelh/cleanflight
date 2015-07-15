@@ -404,9 +404,9 @@ static void resetConf(void)
     masterConfig.rxConfig.rx_min_usec = 985;          // any of first 4 channels below this value will trigger rx loss detection
     masterConfig.rxConfig.rx_max_usec = 2115;         // any of first 4 channels above this value will trigger rx loss detection
 
-    masterConfig.rxConfig.rssi_channel = 0;
-    masterConfig.rxConfig.rssi_scale = RSSI_SCALE_DEFAULT;
-    masterConfig.rxConfig.rssi_ppm_invert = 0;
+    masterConfig.rxRSSIConfig.channel = 0;
+    masterConfig.rxRSSIConfig.scale = RSSI_SCALE_DEFAULT;
+    masterConfig.rxRSSIConfig.ppm_invert = 0;
 
     masterConfig.inputFilteringMode = INPUT_FILTERING_DISABLED;
 
@@ -856,7 +856,7 @@ void validateAndFixConfig(void)
     }
 #endif
 
-    useRxConfig(&masterConfig.rxConfig);
+    useRxConfig(&masterConfig.rxConfig, &masterConfig.rxRSSIConfig);
 
     serialConfig_t *serialConfig = &masterConfig.serialConfig;
 
