@@ -190,24 +190,42 @@ def totalsize(v):
     else:
         return type.size
 
+def norm(v):
+    """Turn a typedef or struct name into the normalised name."""
+    if v.endswith('_t') or v.endswith('_s'):
+        return v[:-2]
+    return v
+
 def main():
+    strict = False
+
     parser = argparse.ArgumentParser()
     parser.add_argument('-o')
-    parser.add_argument('-t', type=file)
-    parser.add_argument('src', type=file)
+    parser.add_argument('-t', type=argparse.FileType('r'))
+    parser.add_argument('src', type=argparse.FileType('r'))
     args = parser.parse_args()
     
-    contents = args.src.read()
-    doc = schema.parseString(contents, parseAll=True)
     env = jinja2.Environment()
     env.filters.update({
         'constname': constname,
         'ucfirst': ucfirst,
         'makeargs': makeargs,
         'totalsize': totalsize,
+        'norm': norm,
         })
     t = env.from_string(args.t.read())
-    rendered = t.render(doc=doc)
+    decls = []
+
+    contents = args.src.read()
+    if strict:
+        docs = [schema.parseString(contents, parseAll=True)]
+    else:
+        docs = schema.scanString(contents)
+
+    for doc in docs:
+        decls.extend(doc[0])
+
+    rendered = t.render(decls=decls)
 
     if args.o:
         with open(args.o, 'w') as f:
