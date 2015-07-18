@@ -75,10 +75,10 @@ Typedef = collections.namedtuple('Typedef', 'name alias')
 def parse_typedef(tokens):
     return Typedef(tokens.name, tokens.alias)
 
-Struct = collections.namedtuple('Struct', 'type name fields')
+Struct = collections.namedtuple('Struct', 'type name fields comments')
 
 def parse_struct(tokens):
-    return Struct('Struct', tokens.name, list(tokens.fields))
+    return Struct('Struct', tokens.name, list(tokens.fields), first(tokens.comments))
 
 StructField = collections.namedtuple('StructField', 'type name count comments')
 
@@ -118,17 +118,19 @@ struct_field = (
     Optional(comments).setResultsName('comments')
     + identifier.setResultsName('type')
     + identifier.setResultsName('name')
-    + Optional(lbracket + number + rbracket).setParseAction(parse_count).setResultsName('count')
+    + Optional(lbracket + Optional(number) + rbracket).setParseAction(parse_count).setResultsName('count')
     + semi
     )
 struct_field.setParseAction(parse_struct_field)
 
 struct_decl = (
-    Optional(typedef)
+    Optional(comments).setResultsName('comments')
+    + Optional(typedef)
     + struct
     + identifier.setResultsName('name')
     + lbrace
     + OneOrMore(struct_field).setResultsName('fields')
+    + Optional(comments)
     + rbrace
     + ZeroOrMore(identifier)
     )
@@ -148,6 +150,7 @@ enum_decl = (
     + lbrace
     + delimitedList(enum_field).setResultsName('fields')
     + Optional(comma)
+    + Optional(comments)
     + rbrace
     )
 enum_decl.setParseAction(parse_enum)
@@ -193,8 +196,15 @@ def totalsize(v):
 def norm(v):
     """Turn a typedef or struct name into the normalised name."""
     if v.endswith('_t') or v.endswith('_s'):
-        return v[:-2]
+        v = v[:-2]
+    if v.startswith('msp'):
+        v = v[3:]
     return v
+
+types = {
+    'Enum': Enum,
+    'Struct': Struct,
+    }
 
 def main():
     strict = False
@@ -205,7 +215,7 @@ def main():
     parser.add_argument('src', type=argparse.FileType('r'))
     args = parser.parse_args()
     
-    env = jinja2.Environment()
+    env = jinja2.Environment(trim_blocks=True)
     env.filters.update({
         'constname': constname,
         'ucfirst': ucfirst,
@@ -225,7 +235,10 @@ def main():
     for doc in docs:
         decls.extend(doc[0])
 
-    rendered = t.render(decls=decls)
+    rendered = t.render(decls=decls,
+                        types=types,
+                        isinstance=isinstance,
+                    )
 
     if args.o:
         with open(args.o, 'w') as f:
