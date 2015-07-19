@@ -1,65 +1,105 @@
-import collections
 import struct
 
-FORMATS = {
-    (1, False): 'B',
-    (2, False): 'H',
-    (4, False): 'I',
-    (1, True): 'c',
-    (2, True): 'h',
-    (4, True): 'i',
-}
 
 class Field:
+
+    """A single typed field."""
+
+    FMTS = {
+        (1, False): 'B',
+        (2, False): 'H',
+        (4, False): 'I',
+        (1, True): 'c',
+        (2, True): 'h',
+        (4, True): 'i',
+    }
+
     def __init__(self, name, size, signed, count=None):
         self.name = name
         self.size = size
         self.signed = signed
         self.count = count
 
+    @property
+    def is_array(self):
+        return self.count is not None
+
+    @property
+    def is_var_array(self):
+        return self.count < 0
+
+    @property
+    def fmt(self):
+        return self.FMTS[(self.size, self.signed)]
+
+    @property
+    def wire_size(self):
+        return struct.calcsize(self.fmt)
+
+    @property
+    def is_char(self):
+        return self.size == 1 and self.signed
+
+    def unpack(self, body, offset):
+        return struct.unpack_from('<' + self.fmt, body, offset)[0]
+
+
 class Message:
+
+    """A message made of fields."""
+
     def decode(self, body):
         for name in self.PARAMS:
-            field = getattr(self, name)
-            fmt = FORMATS[(field.size, field.signed)]
-            size = struct.calcsize(fmt)
-            if field.count is None:
+            f = getattr(self, name)
+            fmt = f.fmt
+            size = f.wire_size
+            if not f.is_array:
                 total = size
-            elif field.count < 0:
+            elif f.is_var_array < 0:
                 total = len(body)
             else:
-                total = field.count*size
+                total = f.count * size
+
             if total > len(body):
-                if field.count is None:
+                if not f.is_array:
                     setattr(self, name, 0)
                 else:
                     setattr(self, name, [])
                 body = b''
                 continue
 
-            if field.count is None:
-                value = struct.unpack_from('<' + fmt, body, 0)[0]
+            if not f.is_array:
+                value = f.unpack(body, 0)
             else:
-                count = field.count
-                if count < 0:
+                count = f.count
+                if f.is_var_array:
                     count = len(body) // size
-                value = tuple(struct.unpack_from('<' + fmt, body, i*size)[0] for i in range(count))
-                if size == 1 and field.signed:
+                value = tuple(f.unpack(body, i * size) for i in range(count))
+                if f.is_char:
                     value = b''.join(value)
 
             body = body[total:]
             setattr(self, name, value)
         if body:
-            print('{}: Left {} bytes behind.'.format(self.__class__.__name__, len(body)))
-            
+            print('{}: Left {} bytes behind.'.format(
+                self.__class__.__name__, len(body)))
+
     def __repr__(self):
-        params = ' '.join('{}: {}'.format(x, getattr(self, x)) for x in self.PARAMS)
+        name = self.__class__.__name__
+        names = self.PARAMS
+        values = (getattr(self, x) for x in names)
+        pairs = ('{}: {}'.format(x, y) for x, y in zip(names, values))
+        params = ' '.join(pairs)
+
         if params:
-            return '<{} {}>'.format(self.__class__.__name__, params)
+            return '<{} {}>'.format(name, params)
         else:
-            return '<{}>'.format(self.__class__.__name__)
-    
+            return '<{}>'.format(name)
+
+
 class Enum:
+
+    """An enumeration."""
     @classmethod
     def name(cls, id):
         for name, value in cls.__dict__.items():
@@ -68,7 +108,11 @@ class Enum:
         else:
             return None
 
+
 class Registry:
+
+    """A registry of messages including a map from PGN to message."""
+
     def __init__(self):
         self.pgs = {}
 
@@ -86,11 +130,19 @@ class Registry:
 
 
 class Link:
+
+    """A two way link implementing the MSP framing."""
+
     def __init__(self, port, registry):
         self.port = port
         self.registry = registry
         self.state = None
         self.cmd = None
+        self.body = []
+
+        self.bytes_rxed
+        self.frames_rxed = 0
+        self.chk_fails = 0
 
     def frame(self, cmd, body=b''):
         payload = bytes((len(body), cmd)) + body
@@ -104,9 +156,13 @@ class Link:
             pgn = pg.PGN
         else:
             pgn = pg
-        self.port.write(self.frame(pgn))
+        frame = self.frame(pgn)
+        wrote = self.port.write(frame)
+        assert wrote == len(frame)
 
     def feed(self, data):
+        self.bytes_rxed += len(data)
+
         for ch in data:
             if self.state is None:
                 if ch == ord('$'):
@@ -123,23 +179,24 @@ class Link:
                 else:
                     self.state = None
             elif self.state == 'count':
-                self.count = ch
-                self.state = 'cmd'
-            elif self.state == 'cmd':
-                self.cmd = ch
+                self.count = ch + 3
+                self.body = [ch]
                 self.state = 'payload'
             elif self.state == 'payload':
                 self.body.append(ch)
-            elif self.state == 'chk':
-                expect = self.count ^ self.cmd
-                for b in self.body:
-                    expect ^= b
-                if expect == ch:
-                    yield self.registry.decode(self.cmd, bytes(self.body))
-                self.state = None
+
+                if len(self.body) == self.count:
+                    expect = 0
+                    for b in self.body:
+                        expect ^= b
+                    if expect == 0:
+                        count, cmd, body, chk = self.body[0], self.body[
+                            1], self.body[2:-1], self.body[-1]
+                        self.frames_rxed += 1
+                        yield self.registry.decode(cmd, bytes(body))
+                    else:
+                        self.chk_fails += 1
+                    self.state = None
             else:
                 assert False
                 self.state = None
-
-            if self.state == 'payload' and len(self.body) == self.count:
-                self.state = 'chk'
