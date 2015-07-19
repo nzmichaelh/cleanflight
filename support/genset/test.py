@@ -25,15 +25,17 @@ def main():
 
 #    for pg in r:
 #        print(repr(pg))
-    for i in range(0, 25600):
-        i = msp.PGN.MSP_STATUS
+    for i in range(0, 256):
+#        i = msp.PGN.MSP_SERVO
+#        i = msp.PGN.MSP_STATUS
+
 #        link.request(msp.PGN.MSP_BOXNAMES)
         name = msp.PGN.name(i)
         if not name:
             continue
-        if 'REBOOT' in name:
+        if name.endswith('_CMD'):
             continue
-        if '_SET_' in name:
+        if '_SET_' in name or '_MISSING_' in name:
             continue
         link.request(i)
         f = None

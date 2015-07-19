@@ -8,7 +8,7 @@ enum PGN {
 //
 // MSP commands for Cleanflight original features
 //
-    MSP_CHANNEL_FORWARDING = 32,    //out message         Returns channel forwarding settings
+    MSP_MISSING_CHANNEL_FORWARDING = 32,    //out message         Returns channel forwarding settings
     MSP_SET_CHANNEL_FORWARDING = 33,    //in message          Channel forwarding settings
 
     MSP_MODE_RANGES = 34,    //out message         Returns all mode ranges
@@ -58,12 +58,12 @@ enum PGN {
 
     MSP_DATAFLASH_SUMMARY = 70, //out message - get description of dataflash chip
     MSP_DATAFLASH_READ = 71, //out message - get content of dataflash chip
-    MSP_DATAFLASH_ERASE = 72, //in message - erase dataflash chip
+    MSP_DATAFLASH_ERASE_CMD = 72, //in message - erase dataflash chip
 
     MSP_LOOP_TIME = 73, //out message         Returns FC cycle time i.e looptime parameter
     MSP_SET_LOOP_TIME = 74, //in message          Sets FC cycle time i.e looptime parameter
 
-    MSP_FAILSAFE_CONFIG = 75, //out message         Returns FC Fail-Safe settings
+    MSP_MISSING_FAILSAFE_CONFIG = 75, //out message         Returns FC Fail-Safe settings
     MSP_SET_FAILSAFE_CONFIG = 76, //in message          Sets FC Fail-Safe settings
 //
 // Baseflight MSP commands (if enabled they exist in Cleanflight)
@@ -76,7 +76,7 @@ enum PGN {
     MSP_BF_CONFIG = 66, //out message baseflight-specific settings that aren't covered elsewhere
     MSP_SET_BF_CONFIG = 67, //in message baseflight-specific settings save
 
-    MSP_REBOOT = 68, //in message reboot settings
+    MSP_REBOOT_CMD = 68, //in message reboot settings
 
 // DEPRECATED - Use MSP_BUILD_INFO instead
     MSP_BF_BUILD_INFO = 69, //out message build date as well as some space for future expansion
@@ -101,7 +101,7 @@ enum PGN {
     MSP_ANALOG = 110,    //out message         vbat, powermetersum, rssi if available on RX
     MSP_RC_TUNING = 111,    //out message         rc rate, rc expo, rollpitch rate, yaw rate, dyn throttle PID
     MSP_PID = 112,    //out message         P I D coeff (9 are used currently)
-    MSP_BOX = 113,    //out message         BOX setup (number is dependant of your setup)
+    MSP_MISSING_BOX = 113,    //out message         BOX setup (number is dependant of your setup)
     MSP_MISC = 114,    //out message         powermeter trig
     MSP_MOTOR_PINS = 115,    //out message         which pins are in use for motors & servos, for GUI
     MSP_BOXNAMES = 116,    //out message         the aux switch names
@@ -109,20 +109,20 @@ enum PGN {
     MSP_WP = 118,    //out message         get a WP, WP# is in the payload, returns (WP#, lat, lon, alt, flags) WP#0-home, WP#16-poshold
     MSP_BOXIDS = 119,    //out message         get the permanent IDs associated to BOXes
     MSP_SERVO_CONFIGURATIONS = 120,    //out message         All servo configurations.
-    MSP_NAV_STATUS = 121,    //out message         Returns navigation status
-    MSP_NAV_CONFIG = 122,    //out message         Returns navigation parameters
+    MSP_MISSING_NAV_STATUS = 121,    //out message         Returns navigation status
+    MSP_MISSING_NAV_CONFIG = 122,    //out message         Returns navigation parameters
 
     MSP_SET_RAW_RC = 200,    //in message          8 rc chan
     MSP_SET_RAW_GPS = 201,    //in message          fix, numsat, lat, lon, alt, speed
     MSP_SET_PID = 202,    //in message          P I D coeff (9 are used currently)
     MSP_SET_BOX = 203,    //in message          BOX setup (number is dependant of your setup)
     MSP_SET_RC_TUNING = 204,    //in message          rc rate, rc expo, rollpitch rate, yaw rate, dyn throttle PID, yaw expo
-    MSP_ACC_CALIBRATION = 205,    //in message          no param
-    MSP_MAG_CALIBRATION = 206,    //in message          no param
+    MSP_ACC_CALIBRATION_CMD = 205,    //in message          no param
+    MSP_MAG_CALIBRATION_CMD = 206,    //in message          no param
     MSP_SET_MISC = 207,    //in message          powermeter trig + 8 free for future use
-    MSP_RESET_CONF = 208,    //in message          no param
+    MSP_RESET_CONF_CMD = 208,    //in message          no param
     MSP_SET_WP = 209,    //in message          sets a given WP (WP#,lat, lon, alt, flags)
-    MSP_SELECT_SETTING = 210,    //in message          Select Setting Number (0-2)
+    MSP_SELECT_SETTING_CMD = 210,    //in message          Select Setting Number (0-2)
     MSP_SET_HEAD = 211,    //in message          define a new heading hold direction
     MSP_SET_SERVO_CONFIGURATION = 212,    //in message          Servo settings
     MSP_SET_MOTOR = 214,    //in message          PropBalance function
@@ -130,7 +130,7 @@ enum PGN {
 
     MSP_BIND = 240,    //in message          no param
 
-    MSP_EEPROM_WRITE = 250,    //in message          no param
+    MSP_EEPROM_WRITE_CMD = 250,    //in message          no param
 
     MSP_DEBUGMSG = 253,    //out message         debug string buffer
     MSP_DEBUG = 254,    //out message         debug1,debug2,debug3,debug4
@@ -206,7 +206,7 @@ struct mspRawImu_s {
 };
 // pgn: MSP_SERVO
 struct mspServo_s {
-    // PENDING
+    int16_t servo[];
 };
 // pgn: MSP_SERVO_CONFIGURATIONS
 struct mspServoConfigurations_s {
@@ -233,7 +233,7 @@ struct mspServoMixRules_s {
 };
 // pgn: MSP_MOTOR
 struct mspMotor_s {
-    s_struct((uint8_t *)motor, 16);
+    int16_t motor[];
 };
 // pgn: MSP_RC
 struct mspRc_s {
@@ -423,6 +423,12 @@ struct mspUID_s {
 // size: 4;
 struct mspFeature_s {
     uint32_t featureMask;
+};
+// pgn: MSP_BOARD_ALIGNMENT
+struct mspBoardAlignment_s {
+    int16_t rollDegrees;
+    int16_t pitchDegrees;
+    int16_t yawDegrees;
 };
 // pgn: MSP_VOLTAGE_METER_CONFIG
 // size: 4;

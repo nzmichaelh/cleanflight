@@ -55,7 +55,7 @@ class Message:
             size = f.wire_size
             if not f.is_array:
                 total = size
-            elif f.is_var_array < 0:
+            elif f.is_var_array:
                 total = len(body)
             else:
                 total = f.count * size
@@ -71,9 +71,7 @@ class Message:
             if not f.is_array:
                 value = f.unpack(body, 0)
             else:
-                count = f.count
-                if f.is_var_array:
-                    count = len(body) // size
+                count = total // size
                 value = tuple(f.unpack(body, i * size) for i in range(count))
                 if f.is_char:
                     value = b''.join(value)
@@ -140,7 +138,7 @@ class Link:
         self.cmd = None
         self.body = []
 
-        self.bytes_rxed
+        self.bytes_rxed = 0
         self.frames_rxed = 0
         self.chk_fails = 0
 
