@@ -78,17 +78,31 @@ EnumField = collections.namedtuple('EnumField', 'name value comments')
 def parse_enum_field(tokens):
     return EnumField(tokens.name, first(tokens.value), first(tokens.comments))
 
+
+def parse_compound_value(tokens):
+    l = len(tokens)
+    left = int(tokens[0])
+    for i in range(1, l, 2):
+        operator = tokens[i]
+        right = int(tokens[i+1])
+
+        if operator == '<<':
+            left = left << right
+        else:
+            assert False
+    return left
+
 Typedef = collections.namedtuple('Typedef', 'name alias')
 
 
 def parse_typedef(tokens):
     return Typedef(tokens.name, tokens.alias)
 
-Struct = collections.namedtuple('Struct', 'type name fields comments')
+Struct = collections.namedtuple('Struct', 'type name fields comments repeating count')
 
 
 def parse_struct(tokens):
-    return Struct('Struct', tokens.name, list(tokens.fields), first(tokens.comments))
+    return Struct('Struct', tokens.name, list(tokens.fields), first(tokens.comments), tokens.get('inner', []), tokens.get('count', None))
 
 StructField = collections.namedtuple('StructField', 'type name count comments')
 
@@ -126,6 +140,8 @@ comment = Literal('//').suppress() + restOfLine
 comments = OneOrMore(comment).setParseAction(parse_comments)
 
 #type_alias = Optional(comments) + typedef + identifier + identifier
+array_count = lbracket + Optional(number) + rbracket
+array_count.setParseAction(parse_count)
 
 struct_field = (
     Optional(comments).setResultsName('comments')
@@ -137,23 +153,40 @@ struct_field = (
 )
 struct_field.setParseAction(parse_struct_field)
 
+inner_struct = (
+    Optional(comments).setResultsName('comments')
+    + struct
+    + lbrace
+    + OneOrMore(struct_field).setResultsName('fields')
+    + rbrace
+    + identifier.setResultsName('name')
+    + array_count.setResultsName('count')
+    + semi
+)
+inner_struct.setParseAction(parse_struct)
+
 struct_decl = (
     Optional(comments).setResultsName('comments')
     + Optional(typedef)
     + struct
     + identifier.setResultsName('name')
     + lbrace
-    + OneOrMore(struct_field).setResultsName('fields')
+    + ZeroOrMore(struct_field).setResultsName('fields')
+    + Optional(inner_struct).setResultsName('inner')
     + Optional(comments)
     + rbrace
     + ZeroOrMore(identifier)
 )
 struct_decl.setParseAction(parse_struct)
 
+operator = Literal('<<')
+enum_value = Word(nums) + Optional(operator + Word(nums))
+enum_value.setParseAction(parse_compound_value)
+
 enum_field = (
     Optional(comments).setResultsName('comments')
     + identifier.setResultsName('name')
-    + Optional(equals + number).setResultsName('value')
+    + Optional(equals + enum_value).setResultsName('value')
 )
 enum_field.setParseAction(parse_enum_field)
 
@@ -214,7 +247,7 @@ def totalsize(v):
 
 def norm(v):
     """Turn a typedef or struct name into the normalised name."""
-    if v.endswith('_t') or v.endswith('_s'):
+    if v.endswith('_t') or v.endswith('_s') or v.endswith('_e'):
         v = v[:-2]
     if v.startswith('msp'):
         v = v[3:]
