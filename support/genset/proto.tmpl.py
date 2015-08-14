@@ -1,20 +1,30 @@
 import libmsp
 
 {%- macro make_enum(decl) -%}
-class {{ decl.name }}(libmsp.Enum):
+class {{ decl.name|norm|ucfirst }}(libmsp.Enum):
 {% for field in decl.fields %}
     {{ field.name }} = {{ field.value }}
 {% endfor %}
 {% endmacro %}
 
-{% macro make_struct(decl) %}
-class {{ decl.name|norm|ucfirst }}(libmsp.Message):
+{% macro make_struct(decl, prefix='') %}
+class {{ prefix }}{{ decl.name|norm|ucfirst }}(libmsp.Message):
 {% if decl.comments and decl.comments.text %}
     """{{ decl.comments.text|replace('\n', '\n    ') }}"""
 {% endif %}
+{% if decl.comments and decl.comments.fields.pgn %}
     PGN = PGN.{{ decl.comments.fields.pgn.value }}
+{% endif %}
+{% for inner in decl.repeating %}
+
+    {{ make_struct(inner)|indent(4) }}
+{% endfor %}
+
     PARAMS = (
 {% for field in decl.fields %}
+        '{{ field.name }}',
+{% endfor %}
+{% for field in decl.repeating %}
         '{{ field.name }}',
 {% endfor %}
         )
@@ -28,6 +38,26 @@ class {{ decl.name|norm|ucfirst }}(libmsp.Message):
 {%- endif -%}
 )
 {% endfor %}
+{% for field in decl.repeating %}
+    {{ field.name }} = libmsp.InnerMessage('{{ field.name }}', {{ field.name|norm|ucfirst }}
+{%- if field.count != '' -%}
+, {{ field.count or -1 }}
+{%- endif -%}
+)
+{% endfor %}
+
+    def __init__(self
+{%- for field in decl.fields -%}
+, {{ field.name }}={% if field.count != '' %}[]{% else %}0{% endif %}
+{%- endfor -%}
+{%- for field in decl.repeating -%}
+, {{ field.name }}=[]
+{%- endfor -%}
+):
+{% for field in decl.fields %}
+        self.{{ field.name }} = {{ field.name }}
+{% endfor %}
+        pass
 {% endmacro %}
 
 {% for decl in decls %}
