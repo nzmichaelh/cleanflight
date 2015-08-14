@@ -1,23 +1,23 @@
-// Typedef to allow reuse of ranges and units.
-// range: 1000...2000; units: ns
-typedef int16_t servoDrive_t;
-
-// type: uint8_t
-enum Foo {
-    Value = 5,
-    Value2,
+enum features_e {
+    FEATURE_RX_PPM, // = 1 << 0,
+    FEATURE_VBAT, // = 1 << 1,
+    FEATURE_INFLIGHT_ACC_CAL, // = 1 << 2,
+    FEATURE_RX_SERIAL, // = 1 << 3,
+    FEATURE_MOTOR_STOP, // = 1 << 4,
+    FEATURE_SERVO_TILT, // = 1 << 5,
+    FEATURE_SOFTSERIAL, // = 1 << 6,
+    FEATURE_GPS, // = 1 << 7,
+    FEATURE_FAILSAFE, // = 1 << 8,
+    FEATURE_SONAR, // = 1 << 9,
+    FEATURE_TELEMETRY, // = 1 << 10,
+    FEATURE_CURRENT_METER, // = 1 << 11,
+    FEATURE_3D, // = 1 << 12,
+    FEATURE_RX_PARALLEL_PWM, // = 1 << 13,
+    FEATURE_RX_MSP, // = 1 << 14,
+    FEATURE_RSSI_ADC, // = 1 << 15,
+    FEATURE_LED_STRIP, // = 1 << 16,
+    FEATURE_DISPLAY, // = 1 << 17,
+    FEATURE_ONESHOT125, // = 1 << 18,
+    FEATURE_BLACKBOX, // = 1 << 19,
+    FEATURE_CHANNEL_FORWARDING, // = 1 << 20
 };
-
-// Comment
-// and more
-typedef struct servoParam_s2 {
-    // Short description.  Longer description to show in detailed
-    // help.  Basics are inherited from the typedef.
-    //
-    // default: 1000
-    servoDrive_t min;
-    // default: 2000
-    servoDrive_t max;
-    // default: 1500
-    servoDrive_t mid;
-} foo_t;
