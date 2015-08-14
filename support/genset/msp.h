@@ -210,15 +210,16 @@ struct mspServo_s {
 };
 // pgn: MSP_SERVO_CONFIGURATIONS
 struct mspServoConfigurations_s {
-    // PENDING: Repeats.
-    uint16_t min;
-    uint16_t max;
-    uint16_t middle;
-    uint8_t rate;
-    uint8_t angleAtMin;
-    uint8_t angleAtMax;
-    uint8_t forwardFromChannel;
-    uint32_t reversedSources;
+    struct {
+        uint16_t min;
+        uint16_t max;
+        uint16_t middle;
+        uint8_t rate;
+        uint8_t angleAtMin;
+        uint8_t angleAtMax;
+        int8_t forwardFromChannel;
+        uint32_t reversedSources;
+    } servo[];
 };
 // pgn: MSP_SERVO_MIX_RULES
 struct mspServoMixRules_s {
@@ -474,6 +475,7 @@ struct mspCurrentMeterConfig_s {
 // pgn: MSP_MIXER
 // size: 1;
 struct mspMixer_s {
+    // type: mixerMode_e
     uint8_t mixerMode;
 };
 // pgn: MSP_RX_CONFIG
@@ -497,13 +499,80 @@ struct mspRssiConfig_s {
 struct mspRxMap_s {
     uint8_t rcmap[];
 };
+
+enum mixerMode_e
+{
+    MIXER_TRI = 1,
+    MIXER_QUADP = 2,
+    MIXER_QUADX = 3,
+    MIXER_BICOPTER = 4,
+    MIXER_GIMBAL = 5,
+    MIXER_Y6 = 6,
+    MIXER_HEX6 = 7,
+    MIXER_FLYING_WING = 8,
+    MIXER_Y4 = 9,
+    MIXER_HEX6X = 10,
+    MIXER_OCTOX8 = 11,
+    MIXER_OCTOFLATP = 12,
+    MIXER_OCTOFLATX = 13,
+    MIXER_AIRPLANE = 14,        // airplane / singlecopter / dualcopter (not yet properly supported)
+    MIXER_HELI_120_CCPM = 15,
+    MIXER_HELI_90_DEG = 16,
+    MIXER_VTAIL4 = 17,
+    MIXER_HEX6H = 18,
+    MIXER_PPM_TO_SERVO = 19,    // PPM -> servo relay
+    MIXER_DUALCOPTER = 20,
+    MIXER_SINGLECOPTER = 21,
+    MIXER_ATAIL4 = 22,
+    MIXER_CUSTOM = 23,
+    MIXER_CUSTOM_AIRPLANE = 24,
+    MIXER_CUSTOM_TRI = 25
+};
+
+enum features_e {
+    FEATURE_RX_PPM = 1 << 0,
+    FEATURE_VBAT = 1 << 1,
+    FEATURE_INFLIGHT_ACC_CAL = 1 << 2,
+    FEATURE_RX_SERIAL = 1 << 3,
+    FEATURE_MOTOR_STOP = 1 << 4,
+    FEATURE_SERVO_TILT = 1 << 5,
+    FEATURE_SOFTSERIAL = 1 << 6,
+    FEATURE_GPS = 1 << 7,
+    FEATURE_FAILSAFE = 1 << 8,
+    FEATURE_SONAR = 1 << 9,
+    FEATURE_TELEMETRY = 1 << 10,
+    FEATURE_CURRENT_METER = 1 << 11,
+    FEATURE_3D = 1 << 12,
+    FEATURE_RX_PARALLEL_PWM = 1 << 13,
+    FEATURE_RX_MSP = 1 << 14,
+    FEATURE_RSSI_ADC = 1 << 15,
+    FEATURE_LED_STRIP = 1 << 16,
+    FEATURE_DISPLAY = 1 << 17,
+    FEATURE_ONESHOT125 = 1 << 18,
+    FEATURE_BLACKBOX = 1 << 19,
+    FEATURE_CHANNEL_FORWARDING = 1 << 20
+};
+
+enum serialRXType_e {
+    SERIALRX_SPEKTRUM1024 = 0,
+    SERIALRX_SPEKTRUM2048 = 1,
+    SERIALRX_SBUS = 2,
+    SERIALRX_SUMD = 3,
+    SERIALRX_SUMH = 4,
+    SERIALRX_XBUS_MODE_B = 5,
+    SERIALRX_XBUS_MODE_B_RJ01 = 6,
+};
+
 // pgn: MSP_BF_CONFIG
 // size: 1 + 4 + 1 + 2 + 2 + 2 + 2 + 2;
 struct mspBfConfig_s {
+    // type: mixerMode_e
     uint8_t mixerMode;
 
+    // type: features_e
     uint32_t featureMask;
 
+    // type: serialRXType_e
     uint8_t serialrxProvider;
 
     uint16_t rollDegrees;
@@ -565,4 +634,17 @@ struct mspBfBuildInfo_s {
 // pgn: MSP_DEBUGMSG
 struct mspDebugMsg_s {
     char msg[];
+};
+// pgn: MSP_SET_SERVO_CONFIGURATION
+struct mspSetServoConfiguration_s {
+    uint8_t idx;
+    int16_t min;                            // servo min
+    int16_t max;                            // servo max
+    int16_t middle;                         // servo middle
+    int8_t rate;                            // range [-125;+125] ; can be used to adjust a rate 0-125% and a direction
+    uint8_t angleAtMin;                     // range [0;180] the measured angle in degrees from the middle when the servo is at the 'min' value.
+    uint8_t angleAtMax;                     // range [0;180] the measured angle in degrees from the middle when the servo is at the 'max' value.
+    // PENDING: signed or unsigned?
+    int8_t forwardFromChannel;              // RX channel index, 0 based.  See CHANNEL_FORWARDING_DISABLED
+    uint32_t reversedSources;               // the direction of servo movement for each input source of the servo mixer, bit set=inverted
 };
