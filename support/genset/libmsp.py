@@ -9,7 +9,7 @@ class Field:
         (1, False): 'B',
         (2, False): 'H',
         (4, False): 'I',
-        (1, True): 'c',
+        (1, True): 'b',
         (2, True): 'h',
         (4, True): 'i',
     }
@@ -40,18 +40,47 @@ class Field:
     def is_char(self):
         return self.size == 1 and self.signed
 
-    def unpack(self, body, offset):
+    def decode(self, body, offset):
         return struct.unpack_from('<' + self.fmt, body, offset)[0]
 
+    def encode(self, value):
+        return struct.pack('<' + self.fmt, value)
+
+class InnerMessage:
+    def __init__(self, name, klass, count=None):
+        self.name = name
+        self.klass = klass
+        self.count = count
+        self.template = klass()
+
+    is_char = False
+
+    @property
+    def is_array(self):
+        return self.count is not None
+
+    @property
+    def is_var_array(self):
+        return self.count < 0
+
+    @property
+    def wire_size(self):
+        return self.template.wire_size
+
+    def decode(self, body, offset):
+        inner = self.klass()
+        inner.decode(body[offset:])
+        return inner
 
 class Message:
 
     """A message made of fields."""
+    def params(self):
+        return [getattr(self.__class__, name) for name in self.PARAMS]
 
-    def decode(self, body):
-        for name in self.PARAMS:
-            f = getattr(self, name)
-            fmt = f.fmt
+    def decode(self, body, offset=0):
+        for param in self.params():
+            f = param
             size = f.wire_size
             if not f.is_array:
                 total = size
@@ -62,25 +91,33 @@ class Message:
 
             if total > len(body):
                 if not f.is_array:
-                    setattr(self, name, 0)
+                    setattr(self, f.name, 0)
                 else:
-                    setattr(self, name, [])
+                    setattr(self, f.name, [])
                 body = b''
                 continue
 
             if not f.is_array:
-                value = f.unpack(body, 0)
+                value = f.decode(body, 0)
             else:
                 count = total // size
-                value = tuple(f.unpack(body, i * size) for i in range(count))
+                value = tuple(f.decode(body, i * size) for i in range(count))
                 if f.is_char:
                     value = b''.join(value)
 
             body = body[total:]
-            setattr(self, name, value)
-        if body:
-            print('{}: Left {} bytes behind.'.format(
-                self.__class__.__name__, len(body)))
+            setattr(self, f.name, value)
+        return body
+
+    def encode(self):
+        body = b''
+        for param in self.params():
+            body += param.encode(getattr(self, param.name))
+        return body
+
+    @property
+    def wire_size(self):
+        return sum(x.wire_size for x in self.params())
 
     def __repr__(self):
         name = self.__class__.__name__
@@ -105,6 +142,16 @@ class Enum:
                 return name
         else:
             return None
+
+    @classmethod
+    def flags(cls, ids):
+        values = []
+        for name, value in cls.__dict__.items():
+            if isinstance(value, int):
+                if ids & value:
+                    values.append((value, name))
+        values.sort(key=lambda x: x[0])
+        return ' | '.join(x[-1] for x in values)
 
 
 class Registry:
@@ -148,6 +195,11 @@ class Link:
         for b in payload:
             chk ^= b
         return b'$M<' + payload + bytes((chk & 0xFF,))
+
+    def send(self, msg):
+        frame = self.frame(msg.PGN, msg.encode())
+        wrote = self.port.write(frame)
+        assert wrote == len(frame)
 
     def request(self, pg):
         if isinstance(pg, Message):
