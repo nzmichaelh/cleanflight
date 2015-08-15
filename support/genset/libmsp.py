@@ -14,11 +14,12 @@ class Field:
         (4, True): 'i',
     }
 
-    def __init__(self, name, size, signed, count=None):
+    def __init__(self, name, size, signed, count=None, type_=None):
         self.name = name
         self.size = size
         self.signed = signed
         self.count = count
+        self.type_ = type_
 
     @property
     def is_array(self):
@@ -54,6 +55,7 @@ class InnerMessage:
         self.template = klass()
 
     is_char = False
+    type_ = None
 
     @property
     def is_array(self):
@@ -112,7 +114,12 @@ class Message:
     def encode(self):
         body = b''
         for param in self.params():
-            body += param.encode(getattr(self, param.name))
+            value = getattr(self, param.name)
+            if param.is_array:
+                for v in value:
+                    body += param.encode(v)
+            else:
+                body += param.encode(value)
         return body
 
     @property
@@ -120,38 +127,46 @@ class Message:
         return sum(x.wire_size for x in self.params())
 
     def __repr__(self):
-        name = self.__class__.__name__
-        names = self.PARAMS
-        values = (getattr(self, x) for x in names)
-        pairs = ('{}: {}'.format(x, y) for x, y in zip(names, values))
-        params = ' '.join(pairs)
+        pg = self.__class__.__name__
+        params = []
+        for name in self.PARAMS:
+            value = getattr(self, name)
+            field = getattr(self.__class__, name)
+            if field.type_:
+                value = field.type_.tostr(value)
+            params.append('{}: {}'.format(name, value))
 
         if params:
-            return '<{} {}>'.format(name, params)
+            return '<{} {}>'.format(pg, ' '.join(params))
         else:
-            return '<{}>'.format(name)
+            return '<{}>'.format(pg)
 
 
 class Enum:
 
     """An enumeration."""
     @classmethod
-    def name(cls, id):
+    def tostr(cls, id):
         for name, value in cls.__dict__.items():
             if value == id:
                 return name
         else:
-            return None
+            return str(id)
+
+class Flags:
 
     @classmethod
-    def flags(cls, ids):
+    def tostr(cls, ids):
         values = []
         for name, value in cls.__dict__.items():
             if isinstance(value, int):
                 if ids & value:
                     values.append((value, name))
         values.sort(key=lambda x: x[0])
-        return ' | '.join(x[-1] for x in values)
+        if values:
+            return ' | '.join(x[-1] for x in values)
+        else:
+            return str(ids)
 
 
 class Registry:
