@@ -78,20 +78,30 @@ extern int16_t rcData[MAX_SUPPORTED_RC_CHANNEL_COUNT];       // interval [1000;2
 #define RSSI_SCALE_DEFAULT 30
 
 typedef struct rxConfig_s {
-    uint8_t rcmap[MAX_MAPPABLE_RX_INPUTS];  // mapping of radio channels to internal RPYTA+ order
-    uint8_t serialrx_provider;              // type of UART-based receiver (0 = spek 10, 1 = spek 11, 2 = sbus). Must be enabled by FEATURE_RX_SERIAL first.
-    uint8_t spektrum_sat_bind;              // number of bind pulses for Spektrum satellite receivers
-    uint8_t rssi_channel;
-    uint8_t rssi_scale;
-    uint8_t rssi_ppm_invert;
-    uint16_t midrc;                         // Some radios have not a neutral point centered on 1500. can be changed here
-    uint16_t mincheck;                      // minimum rc end
-    uint16_t maxcheck;                      // maximum rc end
+    // Mapping of radio channels to internal RPYTA+ order
+    uint8_t rcmap[MAX_MAPPABLE_RX_INPUTS];
 
+    // Type of UART-based receiver.  See SerialRxType.  Must be
+    // enabled by FEATURE_RX_SERIAL first.
+    uint8_t serialrx_provider;
+    // maximum rc end
+    uint16_t maxcheck;
+    // Some radios have not a neutral point centered on 1500. can be
+    // changed here.
+    uint16_t midrc;
+    // minimum rc end
+    uint16_t mincheck;
+    // Number of bind pulses for Spektrum satellite receivers.
+    uint8_t spektrum_sat_bind;
     uint16_t rx_min_usec;
     uint16_t rx_max_usec;
-
 } rxConfig_t;
+
+typedef struct rxRSSIConfig_s {
+    uint8_t channel;
+    uint8_t scale;
+    uint8_t ppm_invert;
+} rxRSSIConfig_t;
 
 #define REMAPPABLE_CHANNEL_COUNT (sizeof(((rxConfig_t *)0)->rcmap) / sizeof(((rxConfig_t *)0)->rcmap[0]))
 
@@ -102,7 +112,8 @@ typedef struct rxRuntimeConfig_s {
 
 extern rxRuntimeConfig_t rxRuntimeConfig;
 
-void useRxConfig(rxConfig_t *rxConfigToUse);
+void rxInit(rxConfig_t *rxConfig, rxRSSIConfig_t *rssi);
+void useRxConfig(rxConfig_t *rxConfigToUse, rxRSSIConfig_t *rssi);
 
 typedef uint16_t (*rcReadRawDataPtr)(rxRuntimeConfig_t *rxRuntimeConfig, uint8_t chan);        // used by receiver driver to return channel data
 

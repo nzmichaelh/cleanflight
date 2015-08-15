@@ -405,7 +405,7 @@ static bool testBlackboxConditionUncached(FlightLogFieldCondition condition)
 #endif
 
         case FLIGHT_LOG_FIELD_CONDITION_RSSI:
-            return masterConfig.rxConfig.rssi_channel > 0 || feature(FEATURE_RSSI_ADC);
+            return masterConfig.rxRSSIConfig.channel > 0 || feature(FEATURE_RSSI_ADC);
 
         case FLIGHT_LOG_FIELD_CONDITION_NOT_LOGGING_EVERY_FRAME:
             return masterConfig.blackbox_rate_num < masterConfig.blackbox_rate_denom;

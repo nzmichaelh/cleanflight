@@ -856,7 +856,7 @@ static bool processOutCommand(uint8_t cmdMSP)
         serialize8(0); // gps_ubx_sbas
 #endif
         serialize8(masterConfig.batteryConfig.multiwiiCurrentMeterOutput);
-        serialize8(masterConfig.rxConfig.rssi_channel);
+        serialize8(masterConfig.rxRSSIConfig.channel);
         serialize8(0);
 
         serialize16(currentProfile->mag_declination / 10);
@@ -982,7 +982,7 @@ static bool processOutCommand(uint8_t cmdMSP)
 
     case MSP_RSSI_CONFIG:
         headSerialReply(1);
-        serialize8(masterConfig.rxConfig.rssi_channel);
+        serialize8(masterConfig.rxRSSIConfig.channel);
         break;
 
     case MSP_RX_MAP:
@@ -1241,7 +1241,7 @@ static bool processInCommand(void)
         read8(); // gps_ubx_sbas
 #endif
         masterConfig.batteryConfig.multiwiiCurrentMeterOutput = read8();
-        masterConfig.rxConfig.rssi_channel = read8();
+        masterConfig.rxRSSIConfig.channel = read8();
         read8();
 
         currentProfile->mag_declination = read16() * 10;
@@ -1401,7 +1401,7 @@ static bool processInCommand(void)
         break;
 
     case MSP_SET_RSSI_CONFIG:
-        masterConfig.rxConfig.rssi_channel = read8();
+        masterConfig.rxRSSIConfig.channel = read8();
         break;
 
     case MSP_SET_RX_MAP:

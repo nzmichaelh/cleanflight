@@ -112,7 +112,6 @@ void mixerInit(mixerMode_e mixerMode, motorMixer_t *customMotorMixers, servoMixe
 void mixerInit(mixerMode_e mixerMode, motorMixer_t *customMotorMixers);
 #endif
 void mixerUsePWMOutputConfiguration(pwmOutputConfiguration_t *pwmOutputConfiguration);
-void rxInit(rxConfig_t *rxConfig);
 void gpsInit(serialConfig_t *serialConfig, gpsConfig_t *initialGpsConfig);
 void navigationInit(gpsProfile_t *initialGpsProfile, pidProfile_t *pidProfile);
 void imuInit(void);
@@ -404,7 +403,7 @@ void init(void)
 
     failsafeInit(&masterConfig.rxConfig);
 
-    rxInit(&masterConfig.rxConfig);
+    rxInit(&masterConfig.rxConfig, &masterConfig.rxRSSIConfig);
 
 #ifdef GPS
     if (feature(FEATURE_GPS)) {
