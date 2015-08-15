@@ -1,9 +1,18 @@
 import libmsp
 
 {%- macro make_enum(decl) -%}
-class {{ decl.name|norm|ucfirst }}(libmsp.Enum):
+class {{ decl.name|norm|ucfirst }}(
+{%- if decl.comments and decl.comments.fields.is_flags -%}
+libmsp.Flags
+{%- else -%}
+libmsp.Enum
+{%- endif -%}
+):
+{% set value = 0 %}
 {% for field in decl.fields %}
-    {{ field.name }} = {{ field.value }}
+{% set value = field.value if field.value != None else value %}
+    {{ field.name }} = {{ value }}
+{% set value = value + 1 %}
 {% endfor %}
 {% endmacro %}
 
@@ -36,6 +45,9 @@ class {{ prefix }}{{ decl.name|norm|ucfirst }}(libmsp.Message):
 {%- if field.count != '' -%}
 , {{ field.count or -1 }}
 {%- endif -%}
+{% if field.comments and field.comments.fields.type %}
+, type_={{ field.comments.fields.type.value|norm|ucfirst }}
+{% endif %}
 )
 {% endfor %}
 {% for field in decl.repeating %}
