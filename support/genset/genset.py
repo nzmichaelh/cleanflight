@@ -59,7 +59,7 @@ def parse_comments(tokens):
     fields = {}
     for line in tokens:
         line = line.strip()
-        if re.match('^[a-z]+:', line):
+        if re.match('^[a-z_]+:', line):
             for field in sub_comments.parseString(line):
                 fields[field.name] = field
         else:
